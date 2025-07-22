@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/floorboarding/floorboarding.dart';
+import 'screens/floorboarding.dart';
 
 void main() {
   runApp(const MyApp());
