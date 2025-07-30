@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "room.it.room_it"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {

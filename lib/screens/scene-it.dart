@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 
 class CameraScanPage extends StatefulWidget {
   @override
@@ -15,6 +16,9 @@ class _CameraScanPageState extends State<CameraScanPage> {
   List<CameraDescription>? _cameras;
   bool _isRecording = false;
   String? _videoPath;
+
+  // Store extracted frame image files here
+  List<File> _extractedFrames = [];
 
   @override
   void initState() {
@@ -43,13 +47,11 @@ class _CameraScanPageState extends State<CameraScanPage> {
   Future<void> _startRecording() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
 
-    final directory = await getTemporaryDirectory();
-    final filePath = path.join(directory.path, '${DateTime.now()}.mp4');
-
     await _cameraController!.startVideoRecording();
-    _videoPath = filePath;
     setState(() {
       _isRecording = true;
+      _extractedFrames.clear(); // clear old frames on new recording
+      _videoPath = null;
     });
   }
 
@@ -61,6 +63,38 @@ class _CameraScanPageState extends State<CameraScanPage> {
       _isRecording = false;
       _videoPath = file.path;
     });
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Video saved: ${file.path.split('/').last}"),
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    // Extract frames from video
+    final directory = await getTemporaryDirectory();
+    final framesDir = Directory(path.join(directory.path, "frames_${DateTime.now().millisecondsSinceEpoch}"));
+    await framesDir.create();
+
+    await extractFrames(file.path, framesDir.path);
+
+    // Load extracted frames into _extractedFrames list
+    final extractedFiles = framesDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.png'))
+        .toList();
+
+    setState(() {
+      _extractedFrames = extractedFiles;
+    });
+  }
+
+  Future<void> extractFrames(String videoPath, String outputDir) async {
+    final command = "-i $videoPath -vf fps=1 $outputDir/frame_%03d.png";
+    await FFmpegKit.execute(command);
   }
 
   @override
@@ -79,27 +113,71 @@ class _CameraScanPageState extends State<CameraScanPage> {
 
     return Scaffold(
       appBar: AppBar(title: Text("Scan Room")),
-      body: Stack(
+      body: Column(
         children: [
-          CameraPreview(_cameraController!),
-          Positioned(
-            bottom: 30,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: FloatingActionButton(
-                backgroundColor: _isRecording ? Colors.red : Colors.blue,
-                onPressed: _isRecording ? _stopRecording : _startRecording,
-                child: Icon(_isRecording ? Icons.stop : Icons.videocam),
-              ),
+          Expanded(
+            flex: 6,
+            child: Stack(
+              children: [
+                CameraPreview(_cameraController!),
+                if (_isRecording)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "Recording...",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 20,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: FloatingActionButton(
+                      backgroundColor: _isRecording ? Colors.red : Colors.blue,
+                      onPressed: _isRecording ? _stopRecording : _startRecording,
+                      child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+
+          // Show extracted frames horizontally after recording
+          if (_extractedFrames.isNotEmpty)
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                color: Colors.black12,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _extractedFrames.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Image.file(_extractedFrames[index]),
+                    );
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
+// Your SceneItScreen remains unchanged
 class SceneItScreen extends StatefulWidget {
   @override
   _SceneItScreenState createState() => _SceneItScreenState();
