@@ -4,7 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_min/ffmpeg_kit.dart';
 
 class CameraScanPage extends StatefulWidget {
   @override
@@ -17,8 +17,8 @@ class _CameraScanPageState extends State<CameraScanPage> {
   bool _isRecording = false;
   String? _videoPath;
 
-  // Store extracted frame image files here
   List<File> _extractedFrames = [];
+  bool _isExtractingFrames = false;
 
   @override
   void initState() {
@@ -41,59 +41,79 @@ class _CameraScanPageState extends State<CameraScanPage> {
         await _cameraController!.initialize();
         if (mounted) setState(() {});
       }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Camera and microphone permissions are required.")),
+        );
+      }
     }
   }
 
   Future<void> _startRecording() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-
-    await _cameraController!.startVideoRecording();
-    setState(() {
-      _isRecording = true;
-      _extractedFrames.clear(); // clear old frames on new recording
-      _videoPath = null;
-    });
+    try {
+      await _cameraController!.startVideoRecording();
+      setState(() {
+        _isRecording = true;
+        _extractedFrames.clear();
+        _videoPath = null;
+      });
+    } catch (e) {
+      print("Error starting recording: $e");
+    }
   }
 
   Future<void> _stopRecording() async {
     if (_cameraController == null || !_cameraController!.value.isRecordingVideo) return;
 
-    final file = await _cameraController!.stopVideoRecording();
-    setState(() {
-      _isRecording = false;
-      _videoPath = file.path;
-    });
+    try {
+      final file = await _cameraController!.stopVideoRecording();
+      setState(() {
+        _isRecording = false;
+        _videoPath = file.path;
+      });
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Video saved: ${file.path.split('/').last}"),
-        duration: Duration(seconds: 3),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Video saved: ${path.basename(file.path)}"),
+          duration: Duration(seconds: 3),
+        ),
+      );
 
-    // Extract frames from video
-    final directory = await getTemporaryDirectory();
-    final framesDir = Directory(path.join(directory.path, "frames_${DateTime.now().millisecondsSinceEpoch}"));
-    await framesDir.create();
+      setState(() {
+        _isExtractingFrames = true;
+      });
 
-    await extractFrames(file.path, framesDir.path);
+      final directory = await getTemporaryDirectory();
+      final framesDir = Directory(path.join(directory.path, "frames_${DateTime.now().millisecondsSinceEpoch}"));
+      await framesDir.create();
 
-    // Load extracted frames into _extractedFrames list
-    final extractedFiles = framesDir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.png'))
-        .toList();
+      await extractFrames(file.path, framesDir.path);
 
-    setState(() {
-      _extractedFrames = extractedFiles;
-    });
+      final extractedFiles = framesDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.png'))
+          .toList();
+
+      setState(() {
+        _extractedFrames = extractedFiles;
+        _isExtractingFrames = false;
+      });
+    } catch (e) {
+      print("Error stopping recording or extracting frames: $e");
+      setState(() {
+        _isRecording = false;
+        _isExtractingFrames = false;
+      });
+    }
   }
 
   Future<void> extractFrames(String videoPath, String outputDir) async {
-    final command = "-i $videoPath -vf fps=1 $outputDir/frame_%03d.png";
+    final command = '-i "$videoPath" -vf fps=1 "$outputDir/frame_%03d.png"';
     await FFmpegKit.execute(command);
   }
 
@@ -152,7 +172,19 @@ class _CameraScanPageState extends State<CameraScanPage> {
             ),
           ),
 
-          // Show extracted frames horizontally after recording
+          if (_isExtractingFrames)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text("Extracting frames..."),
+                ],
+              ),
+            ),
+
           if (_extractedFrames.isNotEmpty)
             Expanded(
               flex: 2,
@@ -177,7 +209,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
   }
 }
 
-// Your SceneItScreen remains unchanged
+// Add your SceneItScreen back here:
 class SceneItScreen extends StatefulWidget {
   @override
   _SceneItScreenState createState() => _SceneItScreenState();

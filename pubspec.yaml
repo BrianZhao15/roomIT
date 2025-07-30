@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   camera: ^0.10.5+9
-  ffmpeg_kit_flutter: ^4.5.1
+  ffmpeg_kit_flutter_min: ^4.5.1
   path_provider: ^2.1.2
   path: ^1.8.3
   permission_handler: ^11.3.1
