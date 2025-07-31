@@ -1,13 +1,3 @@
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        google()
-        mavenCentral()
-        maven { url = uri("https://www.jitpack.io") }
-        maven { url = uri("https://maven.pkg.github.com/arthenica/ffmpeg-kit") }
-    }
-}
-
 pluginManagement {
     val flutterSdkPath = run {
         val properties = java.util.Properties()

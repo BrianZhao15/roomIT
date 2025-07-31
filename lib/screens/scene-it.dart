@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:ffmpeg_kit_flutter_min/ffmpeg_kit.dart';
+import 'package:video_thumbnail/video_thumbnail.dart' as vt;
+import 'package:flutter/services.dart';
 
 class CameraScanPage extends StatefulWidget {
   @override
@@ -16,9 +16,9 @@ class _CameraScanPageState extends State<CameraScanPage> {
   List<CameraDescription>? _cameras;
   bool _isRecording = false;
   String? _videoPath;
+  List<String> _extractedFrames = [];
 
-  List<File> _extractedFrames = [];
-  bool _isExtractingFrames = false;
+  static const MethodChannel _channel = MethodChannel('scan_media');
 
   @override
   void initState() {
@@ -29,8 +29,9 @@ class _CameraScanPageState extends State<CameraScanPage> {
   Future<void> _initCamera() async {
     final cameraStatus = await Permission.camera.request();
     final micStatus = await Permission.microphone.request();
+    final storageStatus = await Permission.storage.request();
 
-    if (cameraStatus.isGranted && micStatus.isGranted) {
+    if (cameraStatus.isGranted && micStatus.isGranted && storageStatus.isGranted) {
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
         _cameraController = CameraController(
@@ -41,80 +42,56 @@ class _CameraScanPageState extends State<CameraScanPage> {
         await _cameraController!.initialize();
         if (mounted) setState(() {});
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Camera and microphone permissions are required.")),
-        );
-      }
     }
   }
 
   Future<void> _startRecording() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) return;
-    try {
-      await _cameraController!.startVideoRecording();
-      setState(() {
-        _isRecording = true;
-        _extractedFrames.clear();
-        _videoPath = null;
-      });
-    } catch (e) {
-      print("Error starting recording: $e");
-    }
+    await _cameraController!.startVideoRecording();
+    setState(() {
+      _isRecording = true;
+      _extractedFrames.clear();
+      _videoPath = null;
+    });
   }
 
   Future<void> _stopRecording() async {
     if (_cameraController == null || !_cameraController!.value.isRecordingVideo) return;
-
-    try {
-      final file = await _cameraController!.stopVideoRecording();
+    final file = await _cameraController!.stopVideoRecording();
+    setState(() {
+      _isRecording = false;
+      _videoPath = file.path;
+    });
+    if (_videoPath != null) {
+      List<String> frames = await extractFrames(_videoPath!, frameCount: 10);
       setState(() {
-        _isRecording = false;
-        _videoPath = file.path;
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Video saved: ${path.basename(file.path)}"),
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      setState(() {
-        _isExtractingFrames = true;
-      });
-
-      final directory = await getTemporaryDirectory();
-      final framesDir = Directory(path.join(directory.path, "frames_${DateTime.now().millisecondsSinceEpoch}"));
-      await framesDir.create();
-
-      await extractFrames(file.path, framesDir.path);
-
-      final extractedFiles = framesDir
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.png'))
-          .toList();
-
-      setState(() {
-        _extractedFrames = extractedFiles;
-        _isExtractingFrames = false;
-      });
-    } catch (e) {
-      print("Error stopping recording or extracting frames: $e");
-      setState(() {
-        _isRecording = false;
-        _isExtractingFrames = false;
+        _extractedFrames = frames;
       });
     }
   }
 
-  Future<void> extractFrames(String videoPath, String outputDir) async {
-    final command = '-i "$videoPath" -vf fps=1 "$outputDir/frame_%03d.png"';
-    await FFmpegKit.execute(command);
+  Future<List<String>> extractFrames(String videoPath, {int frameCount = 10}) async {
+    final directory = Directory('/storage/emulated/0/Pictures/SceneScans');
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);
+    }
+    final List<String> framePaths = [];
+    for (int i = 0; i < frameCount; i++) {
+      final int timeMs = i * 1000;
+      final Uint8List? bytes = await vt.VideoThumbnail.thumbnailData(
+        video: videoPath,
+        imageFormat: vt.ImageFormat.PNG,
+        timeMs: timeMs,
+        quality: 75,
+      );
+      if (bytes != null) {
+        final frameFile = File('${directory.path}/frame_$i.png');
+        await frameFile.writeAsBytes(bytes);
+        await _channel.invokeMethod('scanFile', {'path': 'file://${frameFile.path}'});
+        framePaths.add(frameFile.path);
+      }
+    }
+    return framePaths;
   }
 
   @override
@@ -127,89 +104,54 @@ class _CameraScanPageState extends State<CameraScanPage> {
   Widget build(BuildContext context) {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return Scaffold(
+        appBar: AppBar(title: Text("Scan Room")),
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(title: Text("Scan Room")),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            flex: 6,
-            child: Stack(
-              children: [
-                CameraPreview(_cameraController!),
-                if (_isRecording)
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        "Recording...",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  bottom: 20,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: FloatingActionButton(
-                      backgroundColor: _isRecording ? Colors.red : Colors.blue,
-                      onPressed: _isRecording ? _stopRecording : _startRecording,
-                      child: Icon(_isRecording ? Icons.stop : Icons.videocam),
-                    ),
-                  ),
-                ),
-              ],
+          CameraPreview(_cameraController!),
+          Positioned(
+            bottom: 120,
+            left: 0,
+            right: 0,
+            child: _extractedFrames.isNotEmpty
+                ? SizedBox(
+              height: 100,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _extractedFrames.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Image.file(File(_extractedFrames[index])),
+                  );
+                },
+              ),
+            )
+                : SizedBox(),
+          ),
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: FloatingActionButton(
+                backgroundColor: _isRecording ? Colors.red : Colors.blue,
+                onPressed: _isRecording ? _stopRecording : _startRecording,
+                child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+              ),
             ),
           ),
-
-          if (_isExtractingFrames)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(width: 16),
-                  Text("Extracting frames..."),
-                ],
-              ),
-            ),
-
-          if (_extractedFrames.isNotEmpty)
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                color: Colors.black12,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _extractedFrames.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Image.file(_extractedFrames[index]),
-                    );
-                  },
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 }
 
-// Add your SceneItScreen back here:
 class SceneItScreen extends StatefulWidget {
   @override
   _SceneItScreenState createState() => _SceneItScreenState();

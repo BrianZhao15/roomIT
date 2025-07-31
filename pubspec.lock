@@ -113,22 +113,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
-  ffmpeg_kit_flutter_min:
-    dependency: "direct main"
-    description:
-      name: ffmpeg_kit_flutter_min
-      sha256: b221055c5c02eceefbb8774862dbc24d59d7cad33bd6db59963baca156310422
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.5.1"
-  ffmpeg_kit_flutter_platform_interface:
-    dependency: transitive
-    description:
-      name: ffmpeg_kit_flutter_platform_interface
-      sha256: addf046ae44e190ad0101b2fde2ad909a3cd08a2a109f6106d2f7048b7abedee
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.1"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -405,6 +389,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
+  video_thumbnail:
+    dependency: "direct main"
+    description:
+      name: video_thumbnail
+      sha256: "181a0c205b353918954a881f53a3441476b9e301641688a581e0c13f00dc588b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.6"
   vm_service:
     dependency: transitive
     description:
