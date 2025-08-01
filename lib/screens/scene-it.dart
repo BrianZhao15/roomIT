@@ -5,6 +5,8 @@ import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_thumbnail/video_thumbnail.dart' as vt;
 import 'package:flutter/services.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CameraScanPage extends StatefulWidget {
   @override
@@ -71,11 +73,11 @@ class _CameraScanPageState extends State<CameraScanPage> {
   }
 
   Future<List<String>> extractFrames(String videoPath, {int frameCount = 10}) async {
-    final directory = Directory('/storage/emulated/0/Pictures/SceneScans');
-    if (!directory.existsSync()) {
-      directory.createSync(recursive: true);
-    }
-    final List<String> framePaths = [];
+    List<String> savedPaths = [];
+
+    final status = await Permission.storage.request();
+    if (!status.isGranted) return savedPaths;
+
     for (int i = 0; i < frameCount; i++) {
       final int timeMs = i * 1000;
       final Uint8List? bytes = await vt.VideoThumbnail.thumbnailData(
@@ -84,14 +86,21 @@ class _CameraScanPageState extends State<CameraScanPage> {
         timeMs: timeMs,
         quality: 75,
       );
+
       if (bytes != null) {
-        final frameFile = File('${directory.path}/frame_$i.png');
-        await frameFile.writeAsBytes(bytes);
-        await _channel.invokeMethod('scanFile', {'path': 'file://${frameFile.path}'});
-        framePaths.add(frameFile.path);
+        final result = await ImageGallerySaver.saveImage(
+          bytes,
+          quality: 75,
+            name: "frame_${i}_${DateTime.now().millisecondsSinceEpoch}",
+        );
+
+        if (result['isSuccess']) {
+          savedPaths.add(result['filePath']);
+        }
       }
     }
-    return framePaths;
+
+    return savedPaths;
   }
 
   @override
