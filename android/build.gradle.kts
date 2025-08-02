@@ -25,11 +25,11 @@ subprojects {
         targetCompatibility = "17"
     }
 
-    java {
+    /*java {
         toolchain {
             languageVersion.set(JavaLanguageVersion.of(17))
         }
-    }
+    }*/
 }
 
 tasks.register<Delete>("clean") {

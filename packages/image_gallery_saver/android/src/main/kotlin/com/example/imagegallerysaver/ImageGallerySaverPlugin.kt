@@ -1,5 +1,34 @@
 package com.example.imagegallerysaver
 
+import android.content.Context
+import androidx.annotation.NonNull
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.MethodChannel.MethodCallHandler
+
+class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
+    private lateinit var channel: MethodChannel
+    private lateinit var context: Context
+
+    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        context = flutterPluginBinding.applicationContext
+        channel = MethodChannel(flutterPluginBinding.binaryMessenger, "image_gallery_saver")
+        channel.setMethodCallHandler(this)
+    }
+
+    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result) {
+        // TODO: implement your logic here or port from existing implementation
+        result.notImplemented()
+    }
+
+    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+        channel.setMethodCallHandler(null)
+    }
+}
+
+/*package com.example.imagegallerysaver
+
 import androidx.annotation.NonNull
 import android.annotation.TargetApi
 import android.content.ContentValues
@@ -244,4 +273,4 @@ class SaveResultModel(var isSuccess: Boolean,
         hashMap["errorMessage"] = errorMessage
         return hashMap
     }
-}
+}*/

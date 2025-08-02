@@ -28,12 +28,29 @@ class _CameraScanPageState extends State<CameraScanPage> {
     _initCamera();
   }
 
+  int getAndroidSdkInt() {
+    if (Platform.isAndroid) {
+      try {
+        final version = int.parse(Platform.version.split(" ").first);
+        return version;
+      } catch (e) {
+        return 0;
+      }
+    }
+    return 0;
+  }
+
   Future<void> _initCamera() async {
     final cameraStatus = await Permission.camera.request();
     final micStatus = await Permission.microphone.request();
     final storageStatus = await Permission.storage.request();
 
-    if (cameraStatus.isGranted && micStatus.isGranted && storageStatus.isGranted) {
+    if (Platform.isAndroid && getAndroidSdkInt() >= 33) {
+      await Permission.photos.request();
+    } else {
+      await Permission.storage.request();
+    }
+    /*if (cameraStatus.isGranted && micStatus.isGranted && storageStatus.isGranted) {
       _cameras = await availableCameras();
       if (_cameras != null && _cameras!.isNotEmpty) {
         _cameraController = CameraController(
@@ -44,7 +61,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
         await _cameraController!.initialize();
         if (mounted) setState(() {});
       }
-    }
+    }*/
   }
 
   Future<void> _startRecording() async {
@@ -76,7 +93,12 @@ class _CameraScanPageState extends State<CameraScanPage> {
     List<String> savedPaths = [];
 
     final status = await Permission.storage.request();
-    if (!status.isGranted) return savedPaths;
+    if (Platform.isAndroid && getAndroidSdkInt() >= 33) {
+      await Permission.photos.request();
+    } else {
+      await Permission.storage.request();
+    }
+    //if (!status.isGranted) return savedPaths;
 
     for (int i = 0; i < frameCount; i++) {
       final int timeMs = i * 1000;
@@ -91,11 +113,18 @@ class _CameraScanPageState extends State<CameraScanPage> {
         final result = await ImageGallerySaver.saveImage(
           bytes,
           quality: 75,
-            name: "frame_${i}_${DateTime.now().millisecondsSinceEpoch}",
+          name: "frame_$i",
+          isReturnImagePathOfIOS: true,
         );
+        /*await ImageGallerySaver.saveImage(
+          bytes,
+          quality: 75,
+            name: "frame_${i}_${DateTime.now().millisecondsSinceEpoch}",
+        );*/
 
         if (result['isSuccess']) {
           savedPaths.add(result['filePath']);
+          print("Save result: $result");
         }
       }
     }
