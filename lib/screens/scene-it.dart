@@ -67,7 +67,8 @@ class _CameraScanPageState extends State<CameraScanPage> {
   Future<List<String>> _saveFramesLocally(String videoPath,
       {int frameCount = 10}) async {
     final docs = await getApplicationDocumentsDirectory();
-    final dir = Directory('${docs.path}/SceneItFrames');
+    final dir = await getExternalStorageDirectory();
+    final folder = Directory('${dir!.path}/SceneItFrames');
     if (!await dir.exists()) await dir.create(recursive: true);
 
     final List<String> saved = [];
