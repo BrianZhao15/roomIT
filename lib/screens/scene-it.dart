@@ -6,6 +6,9 @@ import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_thumbnail/video_thumbnail.dart' as vt;
 import 'package:path_provider/path_provider.dart';
+import 'package:logger/logger.dart';
+
+var logger = Logger();
 
 class CameraScanPage extends StatefulWidget {
   @override
@@ -69,6 +72,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
     final docs = await getApplicationDocumentsDirectory();
     final dir = await getExternalStorageDirectory();
     final folder = Directory('${dir!.path}/SceneItFrames');
+    logger.d('Frame saved at: ${folder.path}');
     if (!await dir.exists()) await dir.create(recursive: true);
 
     final List<String> saved = [];
