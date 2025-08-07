@@ -71,9 +71,11 @@ class _CameraScanPageState extends State<CameraScanPage> {
       {int frameCount = 10}) async {
     final docs = await getApplicationDocumentsDirectory();
     final dir = await getExternalStorageDirectory();
-    final folder = Directory('${dir!.path}/SceneItFrames');
+    if(dir==null) {
+      throw Exception("External storage directory not available");
+    }
+    final folder = Directory(dir.path);
     logger.d('Frame saved at: ${folder.path}');
-    if (!await dir.exists()) await dir.create(recursive: true);
 
     final List<String> saved = [];
 
