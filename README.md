@@ -1,6 +1,6 @@
 # room_it
 
-Rome was not built in one night, but your room can be.
+Rome wasn't built in a day, but your room can be.
 
 ## Getting Started
 
