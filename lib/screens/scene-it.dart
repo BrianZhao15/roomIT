@@ -153,9 +153,6 @@ class _CameraScanPageState extends State<CameraScanPage> {
   }
 }
 
-// ======================================================================
-// Below is your original SceneItScreen code, unchanged to avoid errors:
-
 class SceneItScreen extends StatefulWidget {
   @override
   _SceneItScreenState createState() => _SceneItScreenState();
