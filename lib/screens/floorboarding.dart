@@ -12,7 +12,6 @@ class FloorboardingContent extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Image Placeholder
             Expanded(
               flex: 3,
               child: Container(
