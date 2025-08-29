@@ -72,7 +72,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
     final docs = await getApplicationDocumentsDirectory();
     final dir = await getExternalStorageDirectory();
     if(dir==null) {
-      throw Exception("External storage directory not available");
+      throw Exception("Extra external/internal storage or its directory may not be available");
     }
     final folder = Directory(dir.path);
     logger.d('Frame saved at: ${folder.path}');
