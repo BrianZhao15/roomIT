@@ -79,7 +79,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
 
     final List<String> saved = [];
 
-    for (var i = 0; i < frameCount; i++) {
+    for (var i = 0; i < frameCount; ++i) {
       final bytes = await vt.VideoThumbnail.thumbnailData(
         video: videoPath,
         imageFormat: vt.ImageFormat.PNG,
