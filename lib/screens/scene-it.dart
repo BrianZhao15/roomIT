@@ -86,7 +86,8 @@ class _CameraScanPageState extends State<CameraScanPage> {
         timeMs: i * 1000,
         quality: 75,
       );
-      if (bytes == null) continue;
+      if(bytes == null)
+        continue;
 
       final file = File('${dir.path}/frame_$i.png');
       await file.writeAsBytes(bytes);
