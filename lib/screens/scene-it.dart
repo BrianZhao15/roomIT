@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_thumbnail/video_thumbnail.dart' as vt;
 import 'package:path_provider/path_provider.dart';
 import 'package:logger/logger.dart';
+import 'automate-cmds.dart';
 
 var logger = Logger();
 
@@ -146,6 +146,29 @@ class _CameraScanPageState extends State<CameraScanPage> {
                 onPressed: _isRecording ? _stopRecording : _startRecording,
                 child: Icon(_isRecording ? Icons.stop : Icons.videocam),
               ),
+            ),
+          ),
+          Positioned(
+            bottom: 100,
+            left: 20,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.download),
+              label: const Text('Fetch Pictures'),
+              onPressed: () async {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                );
+
+                await runAdbTarCommand();
+
+                Navigator.of(context).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('ADB command executed.')),
+                );
+              },
             ),
           ),
         ],
