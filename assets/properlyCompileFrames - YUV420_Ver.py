@@ -7,7 +7,7 @@ import numpy as np
 width = 720
 height = 1280
 frame_size = width * height * 3 // 2
-input_file = "replace_w/_path_to_the_file_for_analysis"
+input_file = "replace_w/_path_to_the_file_to_be_analyzed"
 
 # params
 entropy_threshold = 7.0
