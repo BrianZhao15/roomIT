@@ -3,7 +3,7 @@ import math
 import cv2
 import numpy as np
 
-# md, specs, and path
+# metadata, specs, and path
 width = 720
 height = 1280
 frame_size = width * height * 3 // 2
@@ -14,7 +14,7 @@ entropy_threshold = 7.0
 step = 500
 max_frames = 10
 
-# helper functions, idk what it means though but it sounds cool
+# helper functions, idk what it means but it sounds cool
 def entropy(data):
     counts = [0]*256
     for b in data:
@@ -40,7 +40,7 @@ def try_decode_and_save(chunk, frame_index):
         print(f"Frame {frame_index} failed: {e}")
         return False
 
-# main/entry point
+# entry point
 def extract_frames():
     if not os.path.exists(input_file):
         print("File was not found:", input_file)
@@ -69,6 +69,7 @@ def extract_frames():
 
     print(f"Done. Total frames extracted: {found}")
 
+# main
 if __name__ == "__main__":
     extract_frames()
 
