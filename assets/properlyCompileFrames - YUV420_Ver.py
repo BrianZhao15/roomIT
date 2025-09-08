@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 
 # metadata, specs, and path
-width = 720
-height = 1280
+width = 1080
+height = 1920
 frame_size = width * height * 3 // 2
 input_file = "replace_w/_path_to_the_file_to_be_analyzed"
 
