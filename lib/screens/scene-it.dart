@@ -69,13 +69,10 @@ class _CameraScanPageState extends State<CameraScanPage> {
 
   Future<List<String>> _saveFramesLocally(String videoPath,
       {int frameCount = 10}) async {
-    final docs = await getApplicationDocumentsDirectory();
     final dir = await getExternalStorageDirectory();
-    if(dir==null) {
-      throw Exception("Extra external/internal storage or its directory may not be available");
+    if (dir == null) {
+      throw Exception("Storage not available");
     }
-    final folder = Directory(dir.path);
-    logger.d('Frame saved at: ${folder.path}');
 
     final List<String> saved = [];
 
@@ -86,8 +83,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
         timeMs: i * 1000,
         quality: 75,
       );
-      if(bytes == null)
-        continue;
+      if (bytes == null) continue;
 
       final file = File('${dir.path}/frame_$i.png');
       await file.writeAsBytes(bytes);
@@ -100,6 +96,30 @@ class _CameraScanPageState extends State<CameraScanPage> {
   void dispose() {
     _cameraController?.dispose();
     super.dispose();
+  }
+
+  Widget _vrCameraView(CameraController controller) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            Positioned(
+              left: -constraints.maxWidth * 0.25,
+              width: constraints.maxWidth * 1.5,
+              top: 0,
+              bottom: 0,
+              child: CameraPreview(controller),
+            ),
+            Row(
+              children: const [
+                Expanded(child: SizedBox()),
+                Expanded(child: SizedBox()),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -115,7 +135,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
       appBar: AppBar(title: const Text("Scan Room")),
       body: Stack(
         children: [
-          CameraPreview(_cameraController!),
+          _vrCameraView(_cameraController!),
           Positioned(
             bottom: 120,
             left: 0,
@@ -213,6 +233,30 @@ class _SceneItScreenState extends State<SceneItScreen> {
     super.dispose();
   }
 
+  Widget _vrCameraView(CameraController controller) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            Positioned(
+              left: -constraints.maxWidth * 0.25,
+              width: constraints.maxWidth * 1.5,
+              top: 0,
+              bottom: 0,
+              child: CameraPreview(controller),
+            ),
+            Row(
+              children: const [
+                Expanded(child: SizedBox()),
+                Expanded(child: SizedBox()),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_controller == null || !_controller!.value.isInitialized) {
@@ -224,7 +268,7 @@ class _SceneItScreenState extends State<SceneItScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scene It')),
-      body: CameraPreview(_controller!),
+      body: _vrCameraView(_controller!),
     );
   }
 }
