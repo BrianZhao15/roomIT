@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -20,6 +21,9 @@ class _CameraScanPageState extends State<CameraScanPage> {
   bool _isRecording = false;
   String? _videoPath;
   List<String> _extractedFrames = [];
+
+  // 🔹 VR eye separation (slider-controlled)
+  double eyeSeparation = 20.0;
 
   @override
   void initState() {
@@ -42,7 +46,9 @@ class _CameraScanPageState extends State<CameraScanPage> {
   }
 
   Future<void> _startRecording() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    if (_cameraController == null ||
+        !_cameraController!.value.isInitialized) return;
+
     await _cameraController!.startVideoRecording();
     setState(() {
       _isRecording = true;
@@ -52,7 +58,9 @@ class _CameraScanPageState extends State<CameraScanPage> {
   }
 
   Future<void> _stopRecording() async {
-    if (_cameraController == null || !_cameraController!.value.isRecordingVideo) return;
+    if (_cameraController == null ||
+        !_cameraController!.value.isRecordingVideo) return;
+
     final file = await _cameraController!.stopVideoRecording();
     setState(() {
       _isRecording = false;
@@ -71,9 +79,11 @@ class _CameraScanPageState extends State<CameraScanPage> {
       {int frameCount = 10}) async {
     final dir = await getExternalStorageDirectory();
     if (dir == null) {
-      throw Exception("Storage not available");
+      throw Exception(
+          "External storage directory may not be available");
     }
 
+    logger.d('Frame saved at: ${dir.path}');
     final List<String> saved = [];
 
     for (var i = 0; i < frameCount; ++i) {
@@ -83,6 +93,7 @@ class _CameraScanPageState extends State<CameraScanPage> {
         timeMs: i * 1000,
         quality: 75,
       );
+
       if (bytes == null) continue;
 
       final file = File('${dir.path}/frame_$i.png');
@@ -98,33 +109,10 @@ class _CameraScanPageState extends State<CameraScanPage> {
     super.dispose();
   }
 
-  Widget _vrCameraView(CameraController controller) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          children: [
-            Positioned(
-              left: -constraints.maxWidth * 0.25,
-              width: constraints.maxWidth * 1.5,
-              top: 0,
-              bottom: 0,
-              child: CameraPreview(controller),
-            ),
-            Row(
-              children: const [
-                Expanded(child: SizedBox()),
-                Expanded(child: SizedBox()),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+    if (_cameraController == null ||
+        !_cameraController!.value.isInitialized) {
       return Scaffold(
         appBar: AppBar(title: const Text("Scan Room")),
         body: const Center(child: CircularProgressIndicator()),
@@ -135,7 +123,33 @@ class _CameraScanPageState extends State<CameraScanPage> {
       appBar: AppBar(title: const Text("Scan Room")),
       body: Stack(
         children: [
-          _vrCameraView(_cameraController!),
+          // ==========================
+          // 🔥 VR SIDE-BY-SIDE PREVIEW
+          // ==========================
+          Positioned.fill(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding:
+                    EdgeInsets.only(right: eyeSeparation / 2),
+                    child: CameraPreview(_cameraController!),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding:
+                    EdgeInsets.only(left: eyeSeparation / 2),
+                    child: CameraPreview(_cameraController!),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ==========================
+          // 🖼 Extracted Frames Preview
+          // ==========================
           Positioned(
             bottom: 120,
             left: 0,
@@ -149,25 +163,65 @@ class _CameraScanPageState extends State<CameraScanPage> {
                 itemBuilder: (ctx, idx) {
                   return Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Image.file(File(_extractedFrames[idx])),
+                    child: Image.file(
+                      File(_extractedFrames[idx]),
+                    ),
                   );
                 },
               ),
             )
                 : const SizedBox(),
           ),
+
+          // ==========================
+          // 🎚 VR EYE SEPARATION SLIDER
+          // ==========================
+          Positioned(
+            bottom: 190,
+            left: 20,
+            right: 20,
+            child: Column(
+              children: [
+                const Text(
+                  'Eye Separation',
+                  style: TextStyle(color: Colors.white),
+                ),
+                Slider(
+                  min: 0,
+                  max: 60,
+                  value: eyeSeparation,
+                  onChanged: (value) {
+                    setState(() {
+                      eyeSeparation = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // ==========================
+          // 🎥 RECORD BUTTON
+          // ==========================
           Positioned(
             bottom: 30,
             left: 0,
             right: 0,
             child: Center(
               child: FloatingActionButton(
-                backgroundColor: _isRecording ? Colors.red : Colors.blue,
-                onPressed: _isRecording ? _stopRecording : _startRecording,
-                child: Icon(_isRecording ? Icons.stop : Icons.videocam),
+                backgroundColor:
+                _isRecording ? Colors.red : Colors.blue,
+                onPressed:
+                _isRecording ? _stopRecording : _startRecording,
+                child: Icon(
+                    _isRecording ? Icons.stop : Icons.videocam),
               ),
             ),
           ),
+
+          // ==========================
+          // ⬇ FETCH PICTURES BUTTON
+          // ==========================
           Positioned(
             bottom: 100,
             left: 20,
@@ -178,15 +232,16 @@ class _CameraScanPageState extends State<CameraScanPage> {
                 showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                  builder: (_) =>
+                  const Center(child: CircularProgressIndicator()),
                 );
 
                 await runAdbTarCommand();
-
                 Navigator.of(context).pop();
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('ADB command executed.')),
+                  const SnackBar(
+                      content: Text('ADB command executed.')),
                 );
               },
             ),
@@ -196,6 +251,10 @@ class _CameraScanPageState extends State<CameraScanPage> {
     );
   }
 }
+
+// ======================================================
+// SECOND SCREEN (UNCHANGED)
+// ======================================================
 
 class SceneItScreen extends StatefulWidget {
   @override
@@ -221,7 +280,8 @@ class _SceneItScreenState extends State<SceneItScreen> {
 
     _cameras = await availableCameras();
     if (_cameras != null && _cameras!.isNotEmpty) {
-      _controller = CameraController(_cameras![0], ResolutionPreset.medium);
+      _controller =
+          CameraController(_cameras![0], ResolutionPreset.medium);
       await _controller!.initialize();
       if (mounted) setState(() {});
     }
@@ -231,30 +291,6 @@ class _SceneItScreenState extends State<SceneItScreen> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
-  }
-
-  Widget _vrCameraView(CameraController controller) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          children: [
-            Positioned(
-              left: -constraints.maxWidth * 0.25,
-              width: constraints.maxWidth * 1.5,
-              top: 0,
-              bottom: 0,
-              child: CameraPreview(controller),
-            ),
-            Row(
-              children: const [
-                Expanded(child: SizedBox()),
-                Expanded(child: SizedBox()),
-              ],
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -268,7 +304,7 @@ class _SceneItScreenState extends State<SceneItScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scene It')),
-      body: _vrCameraView(_controller!),
+      body: CameraPreview(_controller!),
     );
   }
 }
